@@ -18,7 +18,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         self.window = window
         self.window?.windowScene = scene
         let vc = LaunchListViewController()
-        vc.reactor = .init()
+        vc.reactor = .init(networker: .shared)
         window.rootViewController = vc
         window.makeKeyAndVisible()
     }

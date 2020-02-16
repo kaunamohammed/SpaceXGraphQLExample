@@ -9,7 +9,6 @@
 import Apollo
 import RxSwift
 import ReactorKit
-import Foundation
 
 class LaunchListReactor: Reactor {
     
@@ -32,6 +31,12 @@ class LaunchListReactor: Reactor {
     
     let initialState: State = .init()
     
+    private let networker: Network
+    
+    init(networker: Network) {
+        self.networker = networker
+    }
+    
 }
 
 extension LaunchListReactor {
@@ -40,7 +45,7 @@ extension LaunchListReactor {
         
         switch action {
         case .fetchLaunches:
-            return Network.shared.rx.fetch(query: LaunchListQuery())
+            return networker.rx.fetch(query: LaunchListQuery())
                 .asObservable()
                 .compactMap {
                     let launches = $0.data?.launches?.compactMap { $0 } ?? []
