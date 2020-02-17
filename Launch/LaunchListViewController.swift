@@ -15,7 +15,7 @@ import ReactorKit
 class LaunchListViewController: UIViewController, ReactorKit.View {
     
     typealias DiffableLaunchDataSource = UICollectionViewDiffableDataSource<Section, Launch>
-    typealias DiffableLaunchDataSourceSnapshot = NSDiffableDataSourceSnapshot<Section, LaunchListQuery.Data.Launch>
+    typealias DiffableLaunchDataSourceSnapshot = NSDiffableDataSourceSnapshot<Section, Launch>
     
     var disposeBag = DisposeBag()
     
@@ -25,11 +25,16 @@ class LaunchListViewController: UIViewController, ReactorKit.View {
     
     private var dataSource: DiffableLaunchDataSource!
     
+    private let activityIndicator = UIRefreshControl {
+        $0.tintColor = #colorLiteral(red: 0.501960814, green: 0.501960814, blue: 0.501960814, alpha: 1)
+    }
+    
     private lazy var collectionView: UICollectionView = {
         let cv = UICollectionView(frame: .zero, collectionViewLayout: generateLayout())
         cv.register(LaunchCollectionViewCell.self, forCellWithReuseIdentifier: "LaunchCollectionViewCell")
         cv.autoresizingMask = [.flexibleHeight, .flexibleWidth]
         cv.backgroundColor = #colorLiteral(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
+        cv.refreshControl = activityIndicator
         cv.translatesAutoresizingMaskIntoConstraints = false
         return cv
     }()
@@ -39,6 +44,7 @@ class LaunchListViewController: UIViewController, ReactorKit.View {
         super.viewDidLoad()
             
         view.backgroundColor = #colorLiteral(red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
+        
         view.addSubview(collectionView)
         view.addConstraints(
             [
@@ -56,13 +62,30 @@ class LaunchListViewController: UIViewController, ReactorKit.View {
         rx.viewDidLoad
             .map { Reactor.Action.fetchLaunches }
             .bind(to: reactor.action)
-            .disposed(by: disposeBag) 
-
-        reactor.state.map { $0.launches }
-            .subscribe(onNext: { [weak self] in
-                self?.configureDataSource(launches: $0)
+            .disposed(by: disposeBag)
+        
+        reactor.state.map { $0.launchState }
+            .subscribe(onNext: { [weak self] launchState in
+                
+                switch launchState {
+                    
+                case let .loaded(outcome):
+                    switch outcome {
+                    case .empty:
+                        self?.collectionView.refreshControl?.endRefreshing()
+                    case let .result(launchResult):
+                        self?.collectionView.refreshControl?.endRefreshing()
+                        self?.configureDataSource(launches: launchResult.launches)
+                    }
+                case .loading:
+                    self?.collectionView.refreshControl?.beginRefreshing()
+                case let .failed(error):
+                    self?.collectionView.refreshControl?.endRefreshing()
+                    self?.showAlert(title: "An Error Occured", message: error.localizedDescription)
+                }
+                
             })
-        .disposed(by: disposeBag)
+            .disposed(by: disposeBag)
         
     }
     
@@ -83,6 +106,11 @@ class LaunchListViewController: UIViewController, ReactorKit.View {
         snapshot.appendSections([Section.images])
         snapshot.appendItems(launches)
         return snapshot
+    }
+    
+    private func showAlert(title: String?, message: String?) {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        present(alertController, animated: true)
     }
     
 }
@@ -122,7 +150,23 @@ extension LaunchListViewController {
             subitems: [leadingBoxItem, trailingBoxGroup]
         )
         
-        let section = NSCollectionLayoutSection(group: mainGroup)
+        let mainGroup2 = NSCollectionLayoutGroup.horizontal(
+            layoutSize: NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1),
+                heightDimension: .fractionalWidth(0.5)
+            ),
+            subitems: [trailingBoxGroup, leadingBoxItem]
+        )
+        
+        let group = NSCollectionLayoutGroup.vertical(
+            layoutSize: NSCollectionLayoutSize(
+                widthDimension: .fractionalWidth(1),
+                heightDimension: .fractionalWidth(1)
+            ),
+            subitems: [mainGroup, mainGroup2]
+        )
+        
+        let section = NSCollectionLayoutSection(group: group)
         
         let layout = UICollectionViewCompositionalLayout(section: section)
         

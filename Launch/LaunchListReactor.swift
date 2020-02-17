@@ -14,19 +14,27 @@ class LaunchListReactor: Reactor {
     
     typealias LaunchResult = (launches: [Launch], errors: [GraphQLError])
     
+    enum LaunchLoadingState {
+        case loading
+        case loaded(LaunchLoadingState.Outcome)
+        case failed(Error)
+        
+        enum Outcome {
+            case empty
+            case result(LaunchResult)
+        }
+    }
+    
     enum Action {
         case fetchLaunches
     }
     
     enum Mutation {
-        case setLaunches(LaunchResult)
-        case setFetchLaunchError(Error)
+        case setLaunchLoadingState(LaunchLoadingState)
     }
     
     struct State {
-        var launches: [Launch] = []
-        var graphQLErrors: [GraphQLError] = []
-        var launchFetchError: Error?
+        var launchState: LaunchLoadingState = .loading
     }
     
     let initialState: State = .init()
@@ -50,10 +58,9 @@ extension LaunchListReactor {
                 .compactMap {
                     let launches = $0.data?.launches?.compactMap { $0 } ?? []
                     let errors = $0.errors ?? []
-                    return .setLaunches((launches, errors))
+                    return launches.isEmpty ? .setLaunchLoadingState(.loaded(.empty)) : .setLaunchLoadingState(.loaded(.result((launches, errors))))
             }
-            .catchError { .just(Mutation.setFetchLaunchError($0)) }
-            .observeOn(MainScheduler.instance)
+            .catchError { .just(Mutation.setLaunchLoadingState(.failed($0))) }
         }
         
     }
@@ -67,16 +74,9 @@ extension LaunchListReactor {
         
         var newState = state
         
-        newState.launchFetchError = nil
-        newState.graphQLErrors = []
-        
         switch mutation {
-        case let .setLaunches(launchResult):
-            newState.launches = launchResult.launches
-            newState.graphQLErrors = launchResult.errors
-            return newState
-        case let .setFetchLaunchError(error):
-            newState.launchFetchError = error
+        case let .setLaunchLoadingState(loadingState):
+            newState.launchState = loadingState
             return newState
         }
         
