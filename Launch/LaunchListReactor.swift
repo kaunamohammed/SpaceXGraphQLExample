@@ -10,31 +10,32 @@ import Apollo
 import RxSwift
 import ReactorKit
 
+enum LoadState<A> {
+    case loading
+    case loaded(LoadState.ResultState)
+    case failed(Error)
+    
+    enum ResultState {
+        case empty
+        case result(A)
+    }
+}
+
 class LaunchListReactor: Reactor {
     
     typealias LaunchResult = (launches: [Launch], errors: [GraphQLError])
-    
-    enum LaunchLoadingState {
-        case loading
-        case loaded(LaunchLoadingState.Outcome)
-        case failed(Error)
-        
-        enum Outcome {
-            case empty
-            case result(LaunchResult)
-        }
-    }
+    typealias LaunchLoadState = LoadState<LaunchResult>
     
     enum Action {
         case fetchLaunches
     }
     
     enum Mutation {
-        case setLaunchLoadingState(LaunchLoadingState)
+        case setLaunchLoadingState(LaunchLoadState)
     }
     
     struct State {
-        var launchState: LaunchLoadingState = .loading
+        var launchState: LaunchLoadState = .loading
     }
     
     let initialState: State = .init()
@@ -60,7 +61,7 @@ extension LaunchListReactor {
                     let errors = $0.errors ?? []
                     return launches.isEmpty ? .setLaunchLoadingState(.loaded(.empty)) : .setLaunchLoadingState(.loaded(.result((launches, errors))))
             }
-            .catchError { .just(Mutation.setLaunchLoadingState(.failed($0))) }
+            .catchError { .just(.setLaunchLoadingState(.failed($0))) }
         }
         
     }

@@ -41,9 +41,7 @@ class LaunchCollectionViewCell: UICollectionViewCell {
         let firstImageURLString = (launchImageURLs?.flickrImages?.first ?? "") ?? ""
         guard let url = URL(string: firstImageURLString) else { return }
         let urlComponents = URLComponents(url: url, resolvingAgainstBaseURL: true)
-        DispatchQueue.main.async {
-            self.imageView.kf.setImage(with: urlComponents?.url, placeholder: UIColor.lightGray.image(width: 100, height: 100), options: [.transition(.fade(0.1))])
-        }
+        imageView.kf.setImage(with: urlComponents?.url, placeholder: UIColor.lightGray.image(width: 100, height: 100), options: [.transition(.fade(0.1))])
     }
     
 }

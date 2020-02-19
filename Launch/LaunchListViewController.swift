@@ -93,7 +93,8 @@ class LaunchListViewController: UIViewController, ReactorKit.View {
         dataSource = DiffableLaunchDataSource(collectionView: collectionView) {
             (collectionView: UICollectionView, indexPath: IndexPath, launch: Launch) -> UICollectionViewCell? in
             let cell: LaunchCollectionViewCell = collectionView.dequeueReusableCell(withReuseIdentifier: "LaunchCollectionViewCell", for: indexPath) as! LaunchCollectionViewCell
-            cell.configure(with: launch.links)
+            guard let launchLinks = launch.links else { fatalError("Cannot construct LaunchCollectionViewCell") }
+            cell.configure(with: launchLinks)
             return cell
         }
         
